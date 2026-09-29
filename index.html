@@ -103,6 +103,8 @@
   .facts { display: flex; justify-content: space-between; margin-top: 12px; font-size: 16px; color: var(--ink-2); }
   .facts b { color: var(--ink); font-weight: 700; }
   .ms { font-family: var(--mono); font-size: 22px; color: var(--ink); }
+  .facts .right { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+  .cost { font-family: var(--mono); font-size: 14px; color: var(--ink-2); }
   .error { color: var(--falsch); font-size: 16px; }
 
   /* Verlauf */
@@ -110,7 +112,7 @@
   .log h2 { font-size: 14px; font-weight: 500; color: var(--ink-2); letter-spacing: .04em; margin: 0 0 8px; }
   .log ol { list-style: none; margin: 0; padding: 0; }
   .log li {
-    display: grid; grid-template-columns: 160px 80px 56px 1fr 110px; gap: 12px; align-items: center;
+    display: grid; grid-template-columns: 160px 70px 50px 1fr 90px 150px; gap: 12px; align-items: center;
     padding: 9px 4px; border-top: 1px solid var(--line); font-size: 16px;
   }
   .log .v { font-family: var(--serif); }
@@ -120,6 +122,8 @@
   .log .bar i { display: block; height: 100%; background: var(--ink-2); border-radius: 9px; }
   .log .p { font-family: var(--mono); font-size: 15px; color: var(--ink-2); text-align: right; }
   .log .t { font-family: var(--mono); font-size: 15px; text-align: right; color: var(--ink-2); }
+  .log .c { font-family: var(--mono); font-size: 13px; text-align: right; color: var(--ink-2); white-space: nowrap; }
+  .log .c b { font-weight: 500; color: var(--falsch); }
   .log li.busy .t { color: var(--ink-3); }
 
   .note { margin-top: 34px; font-size: 13px; color: var(--ink-3); line-height: 1.5; }
@@ -135,7 +139,7 @@
     .buttons { grid-template-columns: repeat(2, 1fr); }
     .log li { grid-template-columns: 1fr auto auto; }
     .log .bar { display: none; }
-    .log .t { grid-column: 1 / -1; text-align: left; font-size: 13px; padding-top: 0; }
+    .log .t, .log .c { grid-column: 1 / -1; text-align: left; font-size: 13px; padding-top: 0; }
   }
 </style>
 </head>
@@ -162,7 +166,7 @@
     <div class="who-said"><span id="r-who">Noch niemand gefragt</span><span id="r-p"></span></div>
     <div class="verdict" id="r-verdict">?</div>
     <div class="meter"><i id="r-meter"></i></div>
-    <div class="facts"><span id="r-text">&nbsp;</span><span class="ms" id="r-ms"></span></div>
+    <div class="facts"><span id="r-text">&nbsp;</span><span class="right"><span class="ms" id="r-ms"></span><span class="cost" id="r-cost"></span></span></div>
   </section>
 
   <section class="log" id="log" hidden>
@@ -172,7 +176,8 @@
 
   <p class="note">
     Jev liefert die Wahrscheinlichkeit direkt aus dem Modell. Die LLMs werden gebeten, selbst eine Zahl von 0 bis 100 zu nennen.
-    Zeit = Anfrage vom lokalen Server zum Anbieter und zurück. Nichts wird zwischengespeichert.
+    Zeit = Anfrage vom Server zum Anbieter und zurück. Kosten in US-Cent: bei den LLMs der von OpenRouter abgerechnete Betrag,
+    bei Jev berechnet aus Eingabe-Tokens × Listenpreis (0,042 $ pro Million Tokens). Nichts wird zwischengespeichert.
   </p>
   <p class="credit">Eine Demo von <b>c't 3003</b> · <a href="https://www.heise.de/thema/ct-3003" target="_blank" rel="noopener">heise.de/thema/ct-3003</a></p>
 </main>
@@ -187,6 +192,10 @@ const API = apiParam?.startsWith("http://localhost") ? apiParam
 
 const $ = (id) => document.getElementById(id);
 const fmt = (ms) => ms.toLocaleString("de-DE") + " ms";
+// Kosten in US-Cent mit zwei signifikanten Stellen, z. B. 0,0012 Cent / 0,15 Cent
+const fmtCost = (usd) => usd == null ? "Kosten unbekannt"
+  : (usd * 100).toLocaleString("de-DE", { maximumSignificantDigits: 2 }) + " Cent";
+let jevKosten = null; // Kosten der letzten Jev-Antwort zum aktuellen Satz, für den Vergleich
 const pct = (p) => Math.round(p * 100) + " %";
 let modelle = [], lastSatz = "", showing = 0, seq = 0;
 
@@ -207,7 +216,7 @@ $("satz").addEventListener("keydown", (e) => {
   if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); ask(modelle[0]); }
 });
 $("satz").addEventListener("input", () => {
-  if ($("satz").value.trim() !== lastSatz) { $("log-list").innerHTML = ""; $("log").hidden = true; }
+  if ($("satz").value.trim() !== lastSatz) { $("log-list").innerHTML = ""; $("log").hidden = true; jevKosten = null; }
 });
 
 function setResult(state, m, data) {
@@ -217,6 +226,7 @@ function setResult(state, m, data) {
   if (state === "busy") {
     $("r-verdict").textContent = "…";
     $("r-p").textContent = ""; $("r-text").textContent = `${m.name} überlegt`;
+    $("r-cost").textContent = "";
     $("r-meter").style.width = "50%";
     return;
   }
@@ -227,6 +237,7 @@ function setResult(state, m, data) {
     $("r-text").innerHTML = `<span class="error"></span>`;
     $("r-text").firstChild.textContent = data.error;
     $("r-ms").textContent = "";
+    $("r-cost").textContent = "";
     return;
   }
   const wahr = data.p >= 0.5;
@@ -236,6 +247,27 @@ function setResult(state, m, data) {
   $("r-meter").style.width = (data.p * 100) + "%";
   $("r-text").innerHTML = `zu <b>${pct(data.p)}</b> wahr`;
   $("r-ms").textContent = fmt(data.ms);
+  $("r-cost").textContent = fmtCost(data.kosten) + (m.id !== "jev" && faktor(data.kosten) ? ` · ${faktor(data.kosten)}× Jev` : "");
+}
+
+// Wie viel teurer als Jev? Nur wenn Jev zu diesem Satz schon gefragt wurde.
+function faktor(kosten) {
+  if (kosten == null || !jevKosten) return null;
+  const f = kosten / jevKosten;
+  return f >= 10 ? Math.round(f).toLocaleString("de-DE") : f.toLocaleString("de-DE", { maximumFractionDigits: 1 });
+}
+
+function refreshKosten() {
+  for (const li of $("log-list").children) {
+    if (li.classList.contains("busy")) continue;
+    const c = li.querySelector(".c");
+    const k = li.dataset.kosten === "" || li.dataset.kosten == null ? null : Number(li.dataset.kosten);
+    if (li.dataset.fehler) { c.textContent = ""; continue; }
+    const f = !li.dataset.jev && faktor(k);
+    c.innerHTML = "";
+    c.append(fmtCost(k));
+    if (f) { const b = document.createElement("b"); b.textContent = ` · ${f}×`; c.append(b); c.title = `${f}-mal so teuer wie Jev`; }
+  }
 }
 
 async function ask(m) {
@@ -249,7 +281,7 @@ async function ask(m) {
   $("log").hidden = false;
   const li = document.createElement("li");
   li.className = "busy";
-  li.innerHTML = `<span class="n"></span><span class="v">…</span><span class="p"></span><span class="bar"><i style="width:0"></i></span><span class="t">0,0 s</span>`;
+  li.innerHTML = `<span class="n"></span><span class="v">…</span><span class="p"></span><span class="bar"><i style="width:0"></i></span><span class="t">0,0 s</span><span class="c"></span>`;
   li.querySelector(".n").textContent = m.name;
   $("log-list").prepend(li);
   const t0 = performance.now();
@@ -273,6 +305,7 @@ async function ask(m) {
 
   if (data.error) {
     li.querySelector(".v").textContent = "Fehler";
+    li.dataset.fehler = "1";
     li.querySelector(".t").textContent = "–";
     li.title = data.error;
   } else {
@@ -282,6 +315,10 @@ async function ask(m) {
     li.querySelector(".v").classList.add(wahr ? "wahr" : "falsch");
     li.querySelector(".bar i").style.width = (data.p * 100) + "%";
     li.querySelector(".t").textContent = fmt(data.ms);
+    li.dataset.kosten = data.kosten ?? "";
+    li.dataset.jev = m.id === "jev" ? "1" : "";
+    if (m.id === "jev" && data.kosten != null) jevKosten = data.kosten;
+    refreshKosten();
     li.querySelector(".bar").title = `zu ${pct(data.p)} wahr`;
   }
   if (showing === id) setResult(data.error ? "err" : "done", m, data);

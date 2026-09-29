@@ -14,6 +14,10 @@ export const MODELLE = [
   { id: "nvidia/nemotron-3-ultra-550b-a55b", name: "Nemotron 3 Ultra" },
 ];
 
+// Jev-Listenpreis in US-Dollar pro Million Eingabe-Tokens; Ausgabe-Tokens sind kostenlos.
+// Quelle: https://docs.typesafe.ai/models (Stand 29.09.2026). Unbekannte Version -> keine Kostenangabe.
+const JEV_PREIS_PRO_MTOK = { "jev-1.13.0": 0.042 };
+
 async function withTimeout(fn, ms = 90_000) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), ms);
@@ -45,7 +49,10 @@ async function jev(satz, key) {
     const ms = Math.round(performance.now() - t0);
     if (signal.aborted) throw Object.assign(new Error("abort"), { name: "AbortError" });
     if (!res.ok) throw new Error(json.detail ? JSON.stringify(json.detail).slice(0, 200) : `HTTP ${res.status}`);
-    return { p: json.answers.wahr.noul, ms, modell: json.model };
+    const preis = JEV_PREIS_PRO_MTOK[json.model];
+    const tokens = json.usage?.input_tokens;
+    const kosten = preis != null && tokens != null ? (tokens * preis) / 1e6 : null;
+    return { p: json.answers.wahr.noul, ms, modell: json.model, kosten, tokens };
   });
 }
 
@@ -68,6 +75,8 @@ async function llm(id, satz, key) {
           },
           { role: "user", content: `Aussage: „${satz}“\n\nWie wahrscheinlich ist diese Aussage wahr? Antworte nur mit einer Zahl von 0 bis 100.` },
         ],
+        // Tatsächlich abgerechnete Kosten in der Antwort mitliefern
+        usage: { include: true },
       }),
     });
     const json = await res.json().catch(() => ({}));
@@ -83,7 +92,13 @@ async function llm(id, satz, key) {
       [...raw.matchAll(new RegExp(`${NUM}\\s*(?:%|Prozent)`, "g"))].at(-1)?.[1] ??
       raw.match(new RegExp(`${NUM}\\s*%?\\**\\.?\\s*$`))?.[1];
     if (zahl == null || parseFloat(zahl.replace(",", ".")) > 100) throw new Error(`Keine eindeutige Zahl: „${raw.slice(0, 60)}“`);
-    return { p: Math.max(0, Math.min(100, parseFloat(zahl.replace(",", ".")))) / 100, ms, raw: raw.slice(0, 80) };
+    return {
+      p: Math.max(0, Math.min(100, parseFloat(zahl.replace(",", ".")))) / 100,
+      ms,
+      raw: raw.slice(0, 80),
+      kosten: typeof json.usage?.cost === "number" ? json.usage.cost : null,
+      tokens: json.usage?.total_tokens ?? null,
+    };
   });
 }
 
