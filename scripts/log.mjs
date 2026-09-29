@@ -35,7 +35,7 @@ if (csv) {
   if (!rows.length) console.log("Noch keine Einträge.");
   for (const r of rows.reverse()) {
     const pz = String(Math.round(r.p * 100)).padStart(3) + "%";
-    const ergebnis = r.fehler ? "Fehler" : r.p > 0.7 ? `WAHR       ${pz}` : r.p < 0.3 ? `FALSCH     ${pz}` : `WEISS NICHT${pz}`;
+    const ergebnis = r.fehler ? "Fehler" : r.p >= 0.65 ? `WAHR       ${pz}` : r.p < 0.35 ? `FALSCH     ${pz}` : `WEISS NICHT${pz}`;
     console.log(`${berlin(r.zeit)}  ${kurz(r.modell).padEnd(28)} ${ergebnis.padEnd(15)} ${r.satz}`);
   }
 }

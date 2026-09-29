@@ -212,7 +212,7 @@
   </section>
 
   <p class="note">
-    Unter 30 % gilt ein Satz als falsch, über 70 % als wahr, dazwischen heißt es „Weiß nicht“.
+    Unter 35 % gilt ein Satz als falsch, ab 65 % als wahr, dazwischen heißt es „Weiß nicht“.
     Jev liefert die Wahrscheinlichkeit direkt aus dem Modell. Die LLMs werden gebeten, selbst eine Zahl von 0 bis 100 zu nennen.
     Zeit = Anfrage vom Server zum Anbieter und zurück. Kosten in US-Cent: bei den LLMs der von OpenRouter abgerechnete Betrag,
     bei Jev berechnet aus Eingabe-Tokens × Listenpreis (0,042 $ pro Million Tokens). Nichts wird zwischengespeichert.
@@ -236,9 +236,9 @@ const fmt = (ms) => ms.toLocaleString("de-DE") + " ms";
 const fmtCost = (usd) => usd == null ? "Kosten unbekannt"
   : (usd * 100).toLocaleString("de-DE", { maximumSignificantDigits: 2 }) + " Cent";
 const pct = (p) => Math.round(p * 100) + " %";
-// Zwischen 30 und 70 % sind Ja und Nein ähnlich wahrscheinlich -> "Weiß nicht"
-const UNSICHER = [0.3, 0.7];
-const urteil = (p) => p > UNSICHER[1] ? { key: "wahr", text: "Wahr" }
+// Ab 65 % wahr, unter 35 % falsch, dazwischen sind Ja und Nein ähnlich wahrscheinlich -> "Weiß nicht"
+const UNSICHER = [0.35, 0.65];
+const urteil = (p) => p >= UNSICHER[1] ? { key: "wahr", text: "Wahr" }
   : p < UNSICHER[0] ? { key: "falsch", text: "Falsch" } : { key: "unsicher", text: "Weiß nicht" };
 let modelle = [], lastSatz = "", showing = 0, seq = 0;
 let jev = null;   // letzte Jev-Antwort zum aktuellen Satz ({ ms, kosten }), Vergleichsbasis
