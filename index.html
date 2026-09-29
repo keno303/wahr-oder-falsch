@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wahr oder falsch?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Karla:wght@400;500;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f4ecdf;
+    --paper: #fffaf1;
+    --ink: #3a2e27;
+    --ink-2: #7a6a5e;
+    --ink-3: #b5a697;
+    --line: #e6d9c6;
+    --wahr: #4f7d52;
+    --wahr-soft: #dfe9d6;
+    --falsch: #c0543c;
+    --falsch-soft: #f5dcd2;
+    --jev: #3a2e27;
+    --shadow: 0 1px 0 #fff inset, 0 18px 40px -22px #7a5a3a55, 0 2px 6px -2px #7a5a3a22;
+    --serif: "Young Serif", Georgia, serif;
+    --sans: "Karla", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #221b17; --paper: #2d2520; --ink: #f1e6d6; --ink-2: #b8a796; --ink-3: #7c6c5e; --line: #43372f;
+      --wahr: #8fbf88; --wahr-soft: #34402f; --falsch: #ec8a70; --falsch-soft: #4a3028; --jev: #f1e6d6;
+      --shadow: 0 18px 40px -22px #000a, 0 2px 6px -2px #0006;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #221b17; --paper: #2d2520; --ink: #f1e6d6; --ink-2: #b8a796; --ink-3: #7c6c5e; --line: #43372f;
+    --wahr: #8fbf88; --wahr-soft: #34402f; --falsch: #ec8a70; --falsch-soft: #4a3028; --jev: #f1e6d6;
+    --shadow: 0 18px 40px -22px #000a, 0 2px 6px -2px #0006;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 18px;
+    min-height: 100vh; display: flex; justify-content: center;
+    padding: 56px 16px 80px;
+  }
+  main { width: 100%; max-width: 760px; }
+
+  .brand { display: flex; align-items: center; gap: 20px; margin-bottom: 8px; }
+  .brand img {
+    width: 84px; height: 84px; flex: none; margin: -6px -4px -6px -8px;
+    filter: drop-shadow(0 10px 14px #7a5a3a40);
+  }
+  .kicker { font-size: 15px; color: var(--ink-2); letter-spacing: .02em; margin-bottom: 2px; }
+  .kicker b { color: var(--ink); font-weight: 700; }
+  h1 { font-family: var(--serif); font-weight: 400; font-size: clamp(40px, 6vw, 60px); margin: 0; line-height: 1.05; letter-spacing: -0.01em; }
+  .sub { color: var(--ink-2); margin: 14px 0 32px; }
+
+  .card { background: var(--paper); border-radius: 22px; box-shadow: var(--shadow); }
+
+  textarea {
+    display: block; width: 100%; border: 0; outline: 0; resize: none; background: transparent;
+    font-family: var(--serif); font-size: clamp(24px, 3.2vw, 32px); line-height: 1.3; color: var(--ink);
+    padding: 26px 28px; min-height: 150px; caret-color: var(--falsch);
+  }
+  textarea::placeholder { color: var(--ink-3); }
+  .input { position: relative; }
+  .input:focus-within { outline: 2px solid var(--line); outline-offset: 4px; }
+  .input .hint { position: absolute; right: 22px; bottom: 14px; font-size: 13px; color: var(--ink-3); }
+
+  .who { margin: 28px 0 10px; font-size: 14px; color: var(--ink-2); letter-spacing: .04em; }
+  .buttons { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .buttons button {
+    font: inherit; font-size: 15px; font-weight: 500; color: var(--ink);
+    background: var(--paper); border: 1px solid var(--line); border-radius: 999px;
+    padding: 11px 14px; cursor: pointer; transition: transform .12s, background .2s, border-color .2s;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .buttons button:hover { border-color: var(--ink-3); transform: translateY(-1px); }
+  .buttons button:active { transform: translateY(1px); }
+  .buttons button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .buttons button.jev {
+    grid-column: 1 / -1; font-family: var(--serif); font-size: 22px; font-weight: 400;
+    background: var(--jev); color: var(--paper); border-color: var(--jev); padding: 14px;
+  }
+  .buttons button:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+
+  /* Ergebnis */
+  .result { margin-top: 30px; padding: 30px 32px 28px; min-height: 212px; transition: background .3s; }
+  .result.wahr { background: var(--wahr-soft); }
+  .result.falsch { background: var(--falsch-soft); }
+  .result .who-said { font-size: 15px; color: var(--ink-2); display: flex; justify-content: space-between; gap: 12px; }
+  .verdict { font-family: var(--serif); font-size: clamp(64px, 12vw, 112px); line-height: 1; margin: 10px 0 18px; }
+  .result.wahr .verdict { color: var(--wahr); }
+  .result.falsch .verdict { color: var(--falsch); }
+  .result.idle .verdict, .result.busy .verdict { color: var(--ink-3); }
+  .result.busy .verdict { animation: breathe 1.4s ease-in-out infinite; }
+  @keyframes breathe { 50% { opacity: .45; } }
+  .meter { height: 10px; border-radius: 99px; background: var(--falsch); opacity: .9; overflow: hidden; position: relative; }
+  .meter i { position: absolute; inset: 0 auto 0 0; width: 50%; background: var(--wahr); border-radius: 99px 0 0 99px; transition: width .5s cubic-bezier(.2,.8,.2,1); }
+  .result.idle .meter, .result.busy .meter { background: var(--line); }
+  .result.idle .meter i, .result.busy .meter i { background: transparent; }
+  .facts { display: flex; justify-content: space-between; margin-top: 12px; font-size: 16px; color: var(--ink-2); }
+  .facts b { color: var(--ink); font-weight: 700; }
+  .ms { font-family: var(--mono); font-size: 22px; color: var(--ink); }
+  .error { color: var(--falsch); font-size: 16px; }
+
+  /* Verlauf */
+  .log { margin-top: 26px; }
+  .log h2 { font-size: 14px; font-weight: 500; color: var(--ink-2); letter-spacing: .04em; margin: 0 0 8px; }
+  .log ol { list-style: none; margin: 0; padding: 0; }
+  .log li {
+    display: grid; grid-template-columns: 160px 80px 56px 1fr 110px; gap: 12px; align-items: center;
+    padding: 9px 4px; border-top: 1px solid var(--line); font-size: 16px;
+  }
+  .log .v { font-family: var(--serif); }
+  .log .v.wahr { color: var(--wahr); }
+  .log .v.falsch { color: var(--falsch); }
+  .log .bar { height: 6px; border-radius: 9px; background: var(--line); overflow: hidden; }
+  .log .bar i { display: block; height: 100%; background: var(--ink-2); border-radius: 9px; }
+  .log .p { font-family: var(--mono); font-size: 15px; color: var(--ink-2); text-align: right; }
+  .log .t { font-family: var(--mono); font-size: 15px; text-align: right; color: var(--ink-2); }
+  .log li.busy .t { color: var(--ink-3); }
+
+  .note { margin-top: 34px; font-size: 13px; color: var(--ink-3); line-height: 1.5; }
+
+  .credit { margin-top: 10px; font-size: 14px; color: var(--ink-2); }
+  .credit b { color: var(--ink); }
+  .credit a { color: inherit; text-underline-offset: 3px; text-decoration-color: var(--ink-3); }
+  .credit a:hover { color: var(--ink); }
+
+  @media (max-width: 640px) {
+    .brand img { width: 60px; height: 60px; }
+    body { padding-top: 32px; }
+    .buttons { grid-template-columns: repeat(2, 1fr); }
+    .log li { grid-template-columns: 1fr auto auto; }
+    .log .bar { display: none; }
+    .log .t { grid-column: 1 / -1; text-align: left; font-size: 13px; padding-top: 0; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header class="brand">
+    <img src="ct3003-logo.webp?v=2" width="76" height="76" alt="c't 3003">
+    <div>
+      <div class="kicker">Ein Experiment von <b>c't 3003</b></div>
+      <h1>Wahr oder falsch?</h1>
+    </div>
+  </header>
+  <p class="sub">Wie schnell und wie korrekt urteilen LLMs? Einfach einen Satz eintippen.</p>
+
+  <div class="card input">
+    <textarea id="satz" placeholder="Pinguine können fliegen." spellcheck="false" autofocus></textarea>
+    <span class="hint">↵ fragt Jev</span>
+  </div>
+
+  <div class="who">Wer soll urteilen?</div>
+  <div class="buttons" id="buttons"></div>
+
+  <section class="card result idle" id="result" aria-live="polite">
+    <div class="who-said"><span id="r-who">Noch niemand gefragt</span><span id="r-p"></span></div>
+    <div class="verdict" id="r-verdict">?</div>
+    <div class="meter"><i id="r-meter"></i></div>
+    <div class="facts"><span id="r-text">&nbsp;</span><span class="ms" id="r-ms"></span></div>
+  </section>
+
+  <section class="log" id="log" hidden>
+    <h2>Zu diesem Satz</h2>
+    <ol id="log-list"></ol>
+  </section>
+
+  <p class="note">
+    Jev liefert die Wahrscheinlichkeit direkt aus dem Modell. Die LLMs werden gebeten, selbst eine Zahl von 0 bis 100 zu nennen.
+    Zeit = Anfrage vom lokalen Server zum Anbieter und zurück. Nichts wird zwischengespeichert.
+  </p>
+  <p class="credit">Eine Demo von <b>c't 3003</b> · <a href="https://www.heise.de/thema/ct-3003" target="_blank" rel="noopener">heise.de/thema/ct-3003</a></p>
+</main>
+
+<script>
+// Auf GitHub Pages läuft die API über den Cloudflare Worker, lokal über server.js.
+// Zum Testen des Workers lokal: ?api=http://localhost:8787
+const WORKER_URL = "https://wahr-oder-falsch.ct3003.workers.dev";
+const apiParam = new URLSearchParams(location.search).get("api");
+const API = apiParam?.startsWith("http://localhost") ? apiParam
+  : location.hostname.endsWith("github.io") ? WORKER_URL : "";
+
+const $ = (id) => document.getElementById(id);
+const fmt = (ms) => ms.toLocaleString("de-DE") + " ms";
+const pct = (p) => Math.round(p * 100) + " %";
+let modelle = [], lastSatz = "", showing = 0, seq = 0;
+
+fetch(API + "/api/modelle").then((r) => r.json()).then((d) => {
+  modelle = d.modelle;
+  for (const m of modelle) {
+    const b = document.createElement("button");
+    b.textContent = m.id === "jev" ? "Jev fragen" : m.name;
+    if (m.id === "jev") b.className = "jev";
+    const keyOk = m.id === "jev" ? d.keys.jev : d.keys.llm;
+    if (!keyOk) { b.disabled = true; b.title = "API-Key fehlt in .env"; }
+    b.addEventListener("click", () => ask(m));
+    $("buttons").appendChild(b);
+  }
+});
+
+$("satz").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); ask(modelle[0]); }
+});
+$("satz").addEventListener("input", () => {
+  if ($("satz").value.trim() !== lastSatz) { $("log-list").innerHTML = ""; $("log").hidden = true; }
+});
+
+function setResult(state, m, data) {
+  const r = $("result");
+  r.className = "card result " + state;
+  $("r-who").textContent = m ? m.name : "";
+  if (state === "busy") {
+    $("r-verdict").textContent = "…";
+    $("r-p").textContent = ""; $("r-text").textContent = `${m.name} überlegt`;
+    $("r-meter").style.width = "50%";
+    return;
+  }
+  if (state === "err") {
+    r.className = "card result idle";
+    $("r-verdict").textContent = "?";
+    $("r-p").textContent = "";
+    $("r-text").innerHTML = `<span class="error"></span>`;
+    $("r-text").firstChild.textContent = data.error;
+    $("r-ms").textContent = "";
+    return;
+  }
+  const wahr = data.p >= 0.5;
+  r.className = "card result " + (wahr ? "wahr" : "falsch");
+  $("r-verdict").textContent = wahr ? "Wahr" : "Falsch";
+  $("r-p").textContent = "";
+  $("r-meter").style.width = (data.p * 100) + "%";
+  $("r-text").innerHTML = `zu <b>${pct(data.p)}</b> wahr`;
+  $("r-ms").textContent = fmt(data.ms);
+}
+
+async function ask(m) {
+  const satz = $("satz").value.trim();
+  if (!satz || !m) { $("satz").focus(); return; }
+  lastSatz = satz;
+  const id = ++seq;
+  showing = id;
+
+  // Zeile im Verlauf mit laufender Uhr
+  $("log").hidden = false;
+  const li = document.createElement("li");
+  li.className = "busy";
+  li.innerHTML = `<span class="n"></span><span class="v">…</span><span class="p"></span><span class="bar"><i style="width:0"></i></span><span class="t">0,0 s</span>`;
+  li.querySelector(".n").textContent = m.name;
+  $("log-list").prepend(li);
+  const t0 = performance.now();
+  const timer = setInterval(() => {
+    const s = ((performance.now() - t0) / 1000).toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + " s";
+    li.querySelector(".t").textContent = s;
+    if (showing === id) $("r-ms").textContent = s;
+  }, 100);
+  setResult("busy", m);
+
+  let data;
+  try {
+    const res = await fetch(API + "/api/pruefen", { method: "POST", cache: "no-store", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ satz, modell: m.id }) });
+    data = await res.json();
+    if (!res.ok) throw new Error(data.error || res.statusText);
+  } catch (err) {
+    data = { error: err.message };
+  }
+  clearInterval(timer);
+  li.classList.remove("busy");
+
+  if (data.error) {
+    li.querySelector(".v").textContent = "Fehler";
+    li.querySelector(".t").textContent = "–";
+    li.title = data.error;
+  } else {
+    const wahr = data.p >= 0.5;
+    li.querySelector(".v").textContent = wahr ? "Wahr" : "Falsch";
+    li.querySelector(".p").textContent = pct(data.p);
+    li.querySelector(".v").classList.add(wahr ? "wahr" : "falsch");
+    li.querySelector(".bar i").style.width = (data.p * 100) + "%";
+    li.querySelector(".t").textContent = fmt(data.ms);
+    li.querySelector(".bar").title = `zu ${pct(data.p)} wahr`;
+  }
+  if (showing === id) setResult(data.error ? "err" : "done", m, data);
+}
+</script>
+</body>
+</html>

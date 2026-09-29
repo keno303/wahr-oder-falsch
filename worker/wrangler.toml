@@ -1,0 +1,19 @@
+name = "wahr-oder-falsch"
+main = "worker.js"
+compatibility_date = "2026-09-01"
+
+# Pro Besucher (IP): 20 Anfragen pro Minute – ein Klick auf alle 9 Modelle sind 9
+[[ratelimits]]
+name = "PRO_IP"
+namespace_id = "3003"
+  [ratelimits.simple]
+  limit = 20
+  period = 60
+
+# Alle Besucher zusammen: 300 Anfragen pro Minute
+[[ratelimits]]
+name = "GESAMT"
+namespace_id = "3004"
+  [ratelimits.simple]
+  limit = 300
+  period = 60
