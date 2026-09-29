@@ -35,54 +35,57 @@ async function jev(satz, key) {
   if (!key) throw new Error("TYPESAFE_API_KEY fehlt");
   return withTimeout(async (signal) => {
     const t0 = performance.now();
+    const anfrage = {
+      model: "jev-latest",
+      state: { aussage: satz },
+      questions: { wahr: { type: "noul", instructions: "Ist die `aussage` wahr?" } },
+    };
     const res = await fetch("https://api.typesafe.ai/v1/systemone", {
       method: "POST",
       signal,
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "jev-latest",
-        state: { aussage: satz },
-        questions: { wahr: { type: "noul", instructions: "Ist die `aussage` wahr?" } },
-      }),
+      body: JSON.stringify(anfrage),
     });
     const json = await res.json().catch(() => ({}));
     const ms = Math.round(performance.now() - t0);
     if (signal.aborted) throw Object.assign(new Error("abort"), { name: "AbortError" });
-    if (!res.ok) throw new Error(json.detail ? JSON.stringify(json.detail).slice(0, 200) : `HTTP ${res.status}`);
+    // Anfrage und Antwort gehen zur Anzeige mit (der Key steht nur im Header, nie im JSON)
+    const details = { anfrage, antwort: json };
+    if (!res.ok) throw Object.assign(new Error(json.detail ? JSON.stringify(json.detail).slice(0, 200) : `HTTP ${res.status}`), details);
     const preis = JEV_PREIS_PRO_MTOK[json.model];
     const tokens = json.usage?.input_tokens;
     const kosten = preis != null && tokens != null ? (tokens * preis) / 1e6 : null;
-    return { p: json.answers.wahr.noul, ms, modell: json.model, kosten, tokens };
+    return { p: json.answers.wahr.noul, ms, modell: json.model, kosten, tokens, ...details };
   });
 }
 
 // LLMs: sollen selbst eine Wahrscheinlichkeit von 0 bis 100 nennen
+export const SYSTEMPROMPT =
+  "Du bewertest, ob eine Aussage wahr ist. Antworte ausschließlich mit einer ganzen Zahl von 0 bis 100: der Wahrscheinlichkeit in Prozent, dass die Aussage wahr ist. Keine weiteren Worte.";
 async function llm(id, satz, key) {
   if (!key) throw new Error("OPENROUTER_API_KEY fehlt");
   return withTimeout(async (signal) => {
     const t0 = performance.now();
+    const anfrage = {
+      model: id,
+      messages: [
+        { role: "system", content: SYSTEMPROMPT },
+        { role: "user", content: `Aussage: „${satz}“\n\nWie wahrscheinlich ist diese Aussage wahr? Antworte nur mit einer Zahl von 0 bis 100.` },
+      ],
+      // Tatsächlich abgerechnete Kosten in der Antwort mitliefern
+      usage: { include: true },
+    };
     const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       signal,
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", "X-Title": "Wahr oder falsch (c't 3003)" },
-      body: JSON.stringify({
-        model: id,
-        messages: [
-          {
-            role: "system",
-            content:
-              "Du bewertest, ob eine Aussage wahr ist. Antworte ausschließlich mit einer ganzen Zahl von 0 bis 100: der Wahrscheinlichkeit in Prozent, dass die Aussage wahr ist. Keine weiteren Worte.",
-          },
-          { role: "user", content: `Aussage: „${satz}“\n\nWie wahrscheinlich ist diese Aussage wahr? Antworte nur mit einer Zahl von 0 bis 100.` },
-        ],
-        // Tatsächlich abgerechnete Kosten in der Antwort mitliefern
-        usage: { include: true },
-      }),
+      body: JSON.stringify(anfrage),
     });
     const json = await res.json().catch(() => ({}));
     const ms = Math.round(performance.now() - t0);
     if (signal.aborted) throw Object.assign(new Error("abort"), { name: "AbortError" });
-    if (!res.ok || json.error) throw new Error(json.error?.message || `HTTP ${res.status}`);
+    const details = { anfrage, antwort: json };
+    if (!res.ok || json.error) throw Object.assign(new Error(json.error?.message || `HTTP ${res.status}`), details);
     const raw = String(json.choices?.[0]?.message?.content || "").trim();
     // Nur eindeutige Antworten: ganze Antwort ist eine Zahl, eine Zahl mit %, oder die Zahl steht am Ende.
     // Sonst würde z. B. die 64 aus "Commodore 64" als Wahrscheinlichkeit gelesen.
@@ -91,13 +94,14 @@ async function llm(id, satz, key) {
       raw.match(new RegExp(`^\\**${NUM}\\s*%?\\**$`))?.[1] ??
       [...raw.matchAll(new RegExp(`${NUM}\\s*(?:%|Prozent)`, "g"))].at(-1)?.[1] ??
       raw.match(new RegExp(`${NUM}\\s*%?\\**\\.?\\s*$`))?.[1];
-    if (zahl == null || parseFloat(zahl.replace(",", ".")) > 100) throw new Error(`Keine eindeutige Zahl: „${raw.slice(0, 60)}“`);
+    if (zahl == null || parseFloat(zahl.replace(",", ".")) > 100) throw Object.assign(new Error(`Keine eindeutige Zahl: „${raw.slice(0, 60)}“`), details);
     return {
       p: Math.max(0, Math.min(100, parseFloat(zahl.replace(",", ".")))) / 100,
       ms,
       raw: raw.slice(0, 80),
       kosten: typeof json.usage?.cost === "number" ? json.usage.cost : null,
       tokens: json.usage?.total_tokens ?? null,
+      ...details,
     };
   });
 }

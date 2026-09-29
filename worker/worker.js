@@ -73,7 +73,7 @@ export default {
         return json(200, out);
       } catch (err) {
         loggen(env, ctx, { ...input, fehler: err.message.slice(0, 300) });
-        return json(err.status || 500, { error: err.message });
+        return json(err.status || 500, { error: err.message, anfrage: err.anfrage, antwort: err.antwort });
       }
     }
 

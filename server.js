@@ -53,7 +53,7 @@ const server = createServer(async (req, res) => {
     res.writeHead(404).end();
   } catch (err) {
     console.error(err.message);
-    json(err.status || 500, { error: err.message });
+    json(err.status || 500, { error: err.message, anfrage: err.anfrage, antwort: err.antwort });
   }
 });
 
