@@ -15,8 +15,30 @@ function cors(origin) {
   };
 }
 
+// Eintrag ins Log schreiben; Fehler beim Loggen dürfen die Antwort nie stören
+function loggen(env, ctx, eintrag) {
+  if (!env.LOG) return;
+  ctx.waitUntil(
+    env.LOG.prepare("INSERT INTO eingaben (satz, modell, p, ms, kosten, fehler) VALUES (?, ?, ?, ?, ?, ?)")
+      .bind(eintrag.satz, eintrag.modell, eintrag.p ?? null, eintrag.ms ?? null, eintrag.kosten ?? null, eintrag.fehler ?? null)
+      .run()
+      .catch((err) => console.error("Log fehlgeschlagen:", err.message)),
+  );
+}
+
+const AUFBEWAHRUNG_TAGE = 90;
+
 export default {
-  async fetch(request, env) {
+  // Täglich: Einträge älter als 90 Tage löschen
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(
+      env.LOG.prepare("DELETE FROM eingaben WHERE zeit < strftime('%Y-%m-%dT%H:%M:%SZ', 'now', ?)")
+        .bind(`-${AUFBEWAHRUNG_TAGE} days`)
+        .run(),
+    );
+  },
+
+  async fetch(request, env, ctx) {
     const origin = request.headers.get("Origin") || "";
     if (!ERLAUBT.includes(origin)) return new Response("Nicht erlaubt", { status: 403 });
     const headers = { ...cors(origin), "Content-Type": "application/json", "Cache-Control": "no-store" };
@@ -39,11 +61,18 @@ export default {
       if (!proIp.success) return json(429, { error: "Zu viele Anfragen, bitte kurz warten." });
       if (!gesamt.success) return json(429, { error: "Gerade ist viel los, bitte gleich nochmal versuchen." });
 
+      let input;
       try {
-        const input = eingabe(await request.json());
+        input = eingabe(await request.json());
+      } catch (err) {
+        return json(err.status || 400, { error: err.message });
+      }
+      try {
         const out = await pruefen(input, { typesafe: env.TYPESAFE_API_KEY, openrouter: env.OPENROUTER_API_KEY });
+        loggen(env, ctx, { ...out, ...input });
         return json(200, out);
       } catch (err) {
+        loggen(env, ctx, { ...input, fehler: err.message.slice(0, 300) });
         return json(err.status || 500, { error: err.message });
       }
     }

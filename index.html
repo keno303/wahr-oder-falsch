@@ -68,6 +68,7 @@
   .input:focus-within { outline: 2px solid var(--line); outline-offset: 4px; }
   .input .hint { position: absolute; right: 22px; bottom: 14px; font-size: 13px; color: var(--ink-3); }
 
+  .privacy { margin: 12px 4px 0; font-size: 13px; line-height: 1.45; color: var(--ink-2); }
   .who { margin: 28px 0 10px; font-size: 14px; color: var(--ink-2); letter-spacing: .04em; }
   .buttons { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
   .buttons button {
@@ -159,6 +160,11 @@
     <span class="hint">↵ fragt Jev</span>
   </div>
 
+  <p class="privacy" id="privacy" hidden>
+    Eingegebene Sätze werden mit dem Ergebnis gespeichert, damit c't 3003 sie auswerten kann – ohne IP-Adresse,
+    ohne Cookies, Löschung nach 90 Tagen. Bitte keine persönlichen Daten eintippen.
+  </p>
+
   <div class="who">Wer soll urteilen?</div>
   <div class="buttons" id="buttons"></div>
 
@@ -191,6 +197,8 @@ const API = apiParam?.startsWith("http://localhost") ? apiParam
   : location.hostname.endsWith("github.io") ? WORKER_URL : "";
 
 const $ = (id) => document.getElementById(id);
+// Nur die öffentliche Version (über den Worker) speichert Eingaben
+if (API === WORKER_URL) $("privacy").hidden = false;
 const fmt = (ms) => ms.toLocaleString("de-DE") + " ms";
 // Kosten in US-Cent mit zwei signifikanten Stellen, z. B. 0,0012 Cent / 0,15 Cent
 const fmtCost = (usd) => usd == null ? "Kosten unbekannt"

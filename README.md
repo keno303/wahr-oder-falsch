@@ -19,3 +19,14 @@ Keys kommen aus `../.env` (Forums-Forensik) oder einer eigenen `.env` hier: `TYP
 - Keys ändern: `cd worker && npx wrangler secret put OPENROUTER_API_KEY` (bzw. `TYPESAFE_API_KEY`)
 - Worker neu deployen: `cd worker && npx wrangler deploy`
 - Worker lokal testen: `cd worker && npx wrangler dev` (Keys in `worker/.dev.vars`), dann `http://localhost:3004/?api=http://localhost:8787`
+
+## Eingabe-Log
+
+Die öffentliche Seite speichert jede Anfrage in der Cloudflare-D1-Datenbank `wahr-oder-falsch-log`:
+Satz, Modell, Ergebnis, Zeit, Kosten, Zeitpunkt. **Keine IP-Adresse, keine Browserdaten.**
+Ein täglicher Cron im Worker löscht Einträge nach 90 Tagen. Auf der Seite steht ein Hinweis darauf.
+Lokal (server.js) wird nichts geloggt.
+
+    npm run log          # letzte 50 Einträge
+    npm run log -- 200   # letzte 200
+    npm run log:csv      # alle nach eingaben.csv (Semikolon, für Excel)

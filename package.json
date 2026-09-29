@@ -2,5 +2,9 @@
   "name": "wahr-oder-falsch",
   "private": true,
   "type": "module",
-  "scripts": { "start": "node server.js" }
+  "scripts": {
+    "start": "node server.js",
+    "log": "node scripts/log.mjs",
+    "log:csv": "node scripts/log.mjs --csv"
+  }
 }

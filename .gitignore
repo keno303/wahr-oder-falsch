@@ -4,3 +4,4 @@ worker/.dev.vars
 worker/.wrangler/
 node_modules/
 *.png
+eingaben.csv

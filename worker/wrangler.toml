@@ -17,3 +17,12 @@ namespace_id = "3004"
   [ratelimits.simple]
   limit = 300
   period = 60
+
+# Log der eingegebenen Sätze (ohne IP), Löschung nach 90 Tagen per Cron
+[[d1_databases]]
+binding = "LOG"
+database_name = "wahr-oder-falsch-log"
+database_id = "e13e6919-8865-48c8-94ea-3b17c171a154"
+
+[triggers]
+crons = ["17 3 * * *"]
